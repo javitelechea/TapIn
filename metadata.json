@@ -1,0 +1,5 @@
+{
+  "name": "TapIn",
+  "description": "Captura rápida de ideas por voz. Tocar, hablar, guardar, listo.",
+  "requestFramePermissions": ["microphone"]
+}
