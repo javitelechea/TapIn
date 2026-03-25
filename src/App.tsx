@@ -386,6 +386,10 @@ export default function App() {
   const processAudio = async (blob: Blob) => {
     setIsProcessing(true);
     try {
+      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'undefined' || process.env.GEMINI_API_KEY === '') {
+        throw new Error("API Key no encontrada. Asegurate de haberla configurado en los 'Secrets' de GitHub y haber hecho un nuevo 'Push'.");
+      }
+
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(blob);
@@ -426,9 +430,10 @@ export default function App() {
         audioUrl: URL.createObjectURL(blob),
         completado: false
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error processing audio:", err);
-      alert("Error al procesar el audio.");
+      const msg = err.message || "Error desconocido";
+      alert(`Error al procesar el audio: ${msg}`);
     } finally {
       setIsProcessing(false);
     }
