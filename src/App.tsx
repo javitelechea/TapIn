@@ -392,7 +392,7 @@ export default function App() {
         const base64Data = (reader.result as string).split(',')[1];
         
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-1.5-flash",
           contents: [
             {
               parts: [
