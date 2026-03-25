@@ -386,50 +386,51 @@ export default function App() {
   const processAudio = async (blob: Blob) => {
     setIsProcessing(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64Data = (reader.result as string).split(',')[1];
-        
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          generationConfig: { responseMimeType: "application/json" }
-        });
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+      });
 
-        const result = await model.generateContent([
-          { inlineData: { mimeType: "audio/webm", data: base64Data } },
-          {
-            text: `Analizá este audio en español rioplatense. 
-            Extraé la información y devolvela en formato JSON con el siguiente esquema:
-            - titulo: un título corto y claro
-            - proyecto: una de estas opciones: ${projects.join(', ')}
-            - texto_limpio: el contenido interpretado, bien redactado.
-            - transcripcion_original: la transcripción literal.
-            - prioridad: una de estas opciones: ${PRIORITIES.join(', ')}
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+      });
 
-            Reglas:
-            - Si no menciona proyecto, usá "${projects[0] || 'Proyectos'}".
-            - No inventes contenido.
-            - Normalizá nombres si es necesario.`
-          }
-        ]);
+      const result = await model.generateContent([
+        { inlineData: { mimeType: "audio/webm", data: base64Data } },
+        {
+          text: `Analizá este audio en español rioplatense. 
+          Extraé la información y devolvela en formato JSON con el siguiente esquema:
+          - titulo: un título corto y claro
+          - proyecto: una de estas opciones: ${projects.join(', ')}
+          - texto_limpio: el contenido interpretado, bien redactado.
+          - transcripcion_original: la transcripción literal.
+          - prioridad: una de estas opciones: ${PRIORITIES.join(', ')}
 
-        const responseText = result.response.text();
-        const jsonResult = JSON.parse(responseText || '{}');
-        
-        setPendingCapture({
-          ...jsonResult,
-          id: crypto.randomUUID(),
-          fecha: new Date().toISOString(),
-          audioUrl: URL.createObjectURL(blob),
-          completado: false
-        });
-        setIsProcessing(false);
-      };
+          Reglas:
+          - Si no menciona proyecto, usá "${projects[0] || 'Proyectos'}".
+          - No inventes contenido.
+          - Normalizá nombres si es necesario.`
+        }
+      ]);
+
+      const responseText = result.response.text();
+      const jsonResult = JSON.parse(responseText || '{}');
+      
+      setPendingCapture({
+        ...jsonResult,
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        audioUrl: URL.createObjectURL(blob),
+        completado: false
+      });
     } catch (err) {
-      console.error("Error processing audio", err);
-      setIsProcessing(false);
+      console.error("Error processing audio:", err);
       alert("Error al procesar el audio.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
