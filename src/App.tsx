@@ -27,11 +27,11 @@ import {
   List
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Capture, PriorityType } from './types';
 
 // Initialize Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 const Logo = ({ className = "w-10 h-10" }: { className?: string }) => (
   <div className={`flex items-center justify-center bg-white rounded-xl shadow-sm border border-zinc-100 ${className}`}>
@@ -391,35 +391,34 @@ export default function App() {
       reader.onloadend = async () => {
         const base64Data = (reader.result as string).split(',')[1];
         
-        const response = await ai.models.generateContent({
+        const model = genAI.getGenerativeModel({ 
           model: "gemini-1.5-flash",
-          contents: [
-            {
-              parts: [
-                { inlineData: { mimeType: "audio/webm", data: base64Data } },
-                {
-                  text: `Analizá este audio en español rioplatense. 
-                  Extraé la información y devolvela en formato JSON con el siguiente esquema:
-                  - titulo: un título corto y claro
-                  - proyecto: una de estas opciones: ${projects.join(', ')}
-                  - texto_limpio: el contenido interpretado, bien redactado.
-                  - transcripcion_original: la transcripción literal.
-                  - prioridad: una de estas opciones: ${PRIORITIES.join(', ')}
-
-                  Reglas:
-                  - Si no menciona proyecto, usá "${projects[0] || 'Proyectos'}".
-                  - No inventes contenido.
-                  - Normalizá nombres si es necesario.`
-                }
-              ]
-            }
-          ],
-          config: { responseMimeType: "application/json" }
+          generationConfig: { responseMimeType: "application/json" }
         });
 
-        const result = JSON.parse(response.text || '{}');
+        const result = await model.generateContent([
+          { inlineData: { mimeType: "audio/webm", data: base64Data } },
+          {
+            text: `Analizá este audio en español rioplatense. 
+            Extraé la información y devolvela en formato JSON con el siguiente esquema:
+            - titulo: un título corto y claro
+            - proyecto: una de estas opciones: ${projects.join(', ')}
+            - texto_limpio: el contenido interpretado, bien redactado.
+            - transcripcion_original: la transcripción literal.
+            - prioridad: una de estas opciones: ${PRIORITIES.join(', ')}
+
+            Reglas:
+            - Si no menciona proyecto, usá "${projects[0] || 'Proyectos'}".
+            - No inventes contenido.
+            - Normalizá nombres si es necesario.`
+          }
+        ]);
+
+        const responseText = result.response.text();
+        const jsonResult = JSON.parse(responseText || '{}');
+        
         setPendingCapture({
-          ...result,
+          ...jsonResult,
           id: crypto.randomUUID(),
           fecha: new Date().toISOString(),
           audioUrl: URL.createObjectURL(blob),
